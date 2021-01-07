@@ -3,8 +3,6 @@ const config = require("../config/auth.config");
 const User = db.user;
 
 const Op = db.Sequelize.Op;
-
-var jwt = require("jsonwebtoken");
 var bcrypt = require("bcryptjs");
 
 exports.signup = (req, res) => {
@@ -15,7 +13,18 @@ exports.signup = (req, res) => {
     password: bcrypt.hashSync(req.body.password, 8)
   })
     .then(user => {
-        res.send({ message: "User was registered successfully!" });
+      var token = config.jtwr.sign({ id: user.id }, config.secret, {
+        expiresIn: 86400 // 24 hours
+      });
+
+        res.status(200).send({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+      
+          accessToken: token
+        });
+      
     })
     .catch(err => {
       res.status(500).send({ message: err.message });
@@ -45,10 +54,10 @@ exports.signin = (req, res) => {
         });
       }
 
-      var token = jwt.sign({ id: user.id }, config.secret, {
+      var token = config.jtwr.sign({ id: user.id }, config.secret, {
         expiresIn: 86400 // 24 hours
       });
-
+      res.headers["x-access-token"] =token;
         res.status(200).send({
           id: user.id,
           name: user.name,
@@ -61,4 +70,17 @@ exports.signin = (req, res) => {
     .catch(err => {
       res.status(500).send({ message: err.message });
     });
+
+    exports.logout = (req, res) => {
+      let token = req.headers["x-access-token"];
+
+      if (!token) {
+        return res.status(403).send({
+          message: "No token provided!"
+        });
+      }
+      config.jwtr.destroy(token)
+      return 'Logout Successfully'
+    }
+
 };
